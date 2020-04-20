@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            /* Set the size of the div element that contains the map */
+            #map {
+                height: 800px; /* The height is 400 pixels */
+                width: 100%; /* The width is the width of the web page */
+            }
+        </style>
+    </head>
+    <body>
+        <h3>My Google Maps Demo</h3>
+        <!--The div element for the map -->
+        <div id="map"></div>
+        <script>
+          var santiago = {lat: 20.037547, lng: -75.825594};
+
+          // Initialize and add the map
+          function initMap() {
+            // The map, centered at Uluru
+            var map = new google.maps.Map(
+              document.getElementById('map'), {
+                zoom: 12,
+                center: santiago
+              });
+
+            // fetch('http://localhost:8200/loadPoints', {
+            //   headers: {
+            //     'Content-Type': 'application/json',
+            //     'Accept': 'application/json'
+            //   }
+            // }).then(function (data) {
+            //     data.json().then(function (points) {
+            //       points.forEach(function (point) {
+            //         new google.maps.Marker({
+            //           position: {lat: point.lat, lng: point.lon},
+            //           map: map
+            //         })
+            //       })
+            //     })
+            // });
+
+            google.maps.event.addListener(map, 'click', function (event) {
+              var body = {lat: event.latLng.lat(), lng: event.latLng.lng()};
+              // console.log(body);
+              fetch('http://localhost:8200/saveEvent', {
+                method: 'POST',
+                body: JSON.stringify(body),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json'
+                }
+              }).then(function () {
+                var marker = new google.maps.Marker({
+                  position: event.latLng,
+                  map: map,
+                  title: 'Click to zoom'
+                });
+              });
+            });
+
+
+            var centerControlDiv = document.createElement('div');
+            new CenterControl(centerControlDiv, map, 'Show Lines',
+              function () {
+                return showLinesListener(map)
+              });
+
+            let countryInput = new CountryInput(centerControlDiv);
+            centerControlDiv.append(countryInput);
+            new CenterControl(centerControlDiv, map, 'Events in country',
+              function () {
+                return eventsInRegion(map, countryInput)
+              });
+
+            centerControlDiv.index = 1;
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(centerControlDiv);
+          }
+
+          function showLinesListener(map) {
+            var lat0 = map.getBounds().getNorthEast().lat();
+            var lon0 = map.getBounds().getNorthEast().lng();
+            var lat1 = map.getBounds().getSouthWest().lat();
+            var lon1 = map.getBounds().getSouthWest().lng();
+
+            // position: {lat: point.lat, lng: point.lon}
+            var url = 'http://localhost:8200/loadBorders?lat0=' + lat0 + '&lon0=' + lon0 + '&lat1=' + lat1 + '&lon1=' + lon1;
+            fetch(url, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              }
+            }).then(function (data) {
+              data.json().then(function (polygons) {
+                polygons.forEach(function (polygon) {
+                  // console.log(polygon.polyLine);
+                  var line = new google.maps.Polyline({
+                    path: polygon.polyLine,
+                    geodesic: true,
+                    strokeColor: '#FF0000',
+                    strokeOpacity: 1.0,
+                    strokeWeight: 1
+                  });
+
+                  line.setMap(map);
+                })
+              })
+            });
+          }
+
+
+          function eventsInRegion(map, regionInput) {
+
+            console.log(regionInput.value);
+            // position: {lat: point.lat, lng: point.lon}
+            var url = 'http://localhost:8200/eventsInRegion?iso3Code=' + regionInput.value;
+            fetch(url, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              }
+            }).then(function (data) {
+              data.json().then(function (points) {
+                points.forEach(function (point) {
+                  console.log(point);
+                  // var line = new google.maps.Polyline({
+                  //   path: polygon.polyLine,
+                  //   geodesic: true,
+                  //   strokeColor: '#FF0000',
+                  //   strokeOpacity: 1.0,
+                  //   strokeWeight: 1
+                  // });
+                  //
+                  // line.setMap(map);
+                })
+              })
+            });
+          }
+
+
+          function CenterControl(controlDiv, map, title, listener) {
+
+            // Set CSS for the control border.
+            var controlUI = document.createElement('div');
+            controlUI.style.backgroundColor = '#fff';
+            controlUI.style.border = '2px solid #fff';
+            controlUI.style.borderRadius = '3px';
+            controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
+            controlUI.style.cursor = 'pointer';
+            controlUI.style.marginBottom = '22px';
+            controlUI.style.textAlign = 'center';
+            controlDiv.appendChild(controlUI);
+
+            // Set CSS for the control interior.
+            var controlText = document.createElement('div');
+            controlText.style.color = 'rgb(25,25,25)';
+            controlText.style.fontFamily = 'Roboto,Arial,sans-serif';
+            controlText.style.fontSize = '16px';
+            controlText.style.lineHeight = '38px';
+            controlText.style.paddingLeft = '5px';
+            controlText.style.paddingRight = '5px';
+            controlText.innerHTML = title;
+            controlUI.appendChild(controlText);
+
+            //upper right and bottom left
+            controlUI.addEventListener('click', listener);
+
+          }
+
+          function CountryInput(controlDiv) {
+            var controlUI = document.createElement('input');
+            controlDiv.appendChild(controlUI);
+            return controlUI;
+          }
+
+        </script>
+        <!--Load the API from the specified URL
+        * The async attribute allows the browser to render the page while the API loads
+        * The key parameter will contain your own API key (which is not needed for this tutorial)
+        * The callback parameter executes the initMap() function
+        -->
+        <script async defer
+                src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCUFQ9bEw2wRRWUKLERdVrHMY029TEvgng&callback=initMap">
+        </script>
+    </body>
+</html>

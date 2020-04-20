@@ -1,0 +1,46 @@
+version: "2.3"
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: maps-mongo
+    restart: always
+    environment:
+      - MONGO_DATA_DIR=/data/db
+      - MONGO_LOG_DIR=/var/log
+    ports:
+      - 27017:27017
+    volumes:
+      - mongo_volume:/data/db
+    #    command: mongod --smallfiles --logpath=/var/log/mongodb/mongo.log # --quiet
+  #    healthcheck:
+  #      test: ["CMD", "curl", "-f", "localhost:27017"]
+  #      test: echo 'db.runCommand("ping").ok' | mongo mongo:27017/test --quiet 1
+  #      interval: 10s
+  #      timeout: 10s
+  #      retries: 5
+
+  geoimport:
+    container_name: geo-import
+    build:
+      context: ./geoimport
+    environment:
+      WAIT_HOSTS: mongodb:27017
+  #    depends_on:
+  #      mongodb:
+  #        condition: service_healthy
+
+  maps_server:
+    container_name: maps-server
+    build:
+      context: .
+    environment:
+      WAIT_HOSTS: mongodb:27017
+    ports:
+      - 8200:8200
+#    depends_on:
+#      mongodb:
+#        condition: service_healthy
+
+volumes:
+  mongo_volume:
